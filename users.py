@@ -90,16 +90,19 @@ def login(lang):
         users = GalateaUser.search(domain, limit=1)
         if users:
             user, = users
+
+            data = None
+            try:
+                data = GalateaUser.users_login(user)
+            except AttributeError:
+                pass
             session['user2manager'] = session['user']
             session['user'] = user.id
             session['display_name'] = user.display_name
             session['customer'] = user.party.id
             session['email'] = user.email
-            try:
-                data = GalateaUser.users_login(user)
+            if data:
                 session.update(data)
-            except AttributeError:
-                pass
             flash(_('Successfully login ' + user.display_name), 'success')
     return redirect(url_for('.users', lang=g.language))
 
@@ -110,16 +113,17 @@ def login(lang):
 def logout(lang):
     if session.get('user2manager'):
         user = GalateaUser(session['user2manager'])
-        data = GalateaUser.users_logout(user)
+        data = None
+        try:
+            data = GalateaUser.users_logout(user)
+        except AttributeError:
+            pass
         session['user'] = user.id
         session['display_name'] = user.display_name
         session['customer'] = user.party.id
         session['email'] = user.email
         session['user2manager'] = None
-        try:
-            data = GalateaUser.users_logout(user)
+        if data:
             session.update(data)
-        except AttributeError:
-            pass
         flash(_('Successfully logout.'), 'success')
     return redirect(url_for('.users', lang=g.language))
