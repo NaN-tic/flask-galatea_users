@@ -3,25 +3,29 @@
 #the full copyright notices and license terms.
 from flask import (Blueprint, request, render_template, current_app, session,
     redirect, url_for, flash, g)
-from galatea.tryton import tryton
+from app_extensions import tryton
 from flask_babel import gettext as _, lazy_gettext
 from flask_paginate import Pagination
 from galatea.helpers import login_required, manager_required
 
 users = Blueprint('users', __name__, template_folder='templates')
 
+
+def get_party_id(user_party):
+    return getattr(user_party, 'id', user_party)
+
 DISPLAY_MSG = lazy_gettext('Displaying <b>{start} - {end}</b> of <b>{total}</b>')
 
-LIMIT_USERS = current_app.config.get('TRYTON_PAGINATION_USERS_LIMIT', 20)
+def _limit_users():
+    return current_app.config.get('TRYTON_PAGINATION_USERS_LIMIT', 20)
 
-Website = tryton.pool.get('galatea.website')
-GalateaUser = tryton.pool.get('galatea.user')
 
 @users.route('/users', methods=['GET', 'POST'], endpoint="users")
 @login_required
 @manager_required
 @tryton.transaction()
 def users_list(lang):
+    GalateaUser = tryton.pool.get('galatea.user')
     try:
         user_id = (session['user2manager']
             if session.get('user2manager') else session['user'])
@@ -40,9 +44,9 @@ def users_list(lang):
             limit = int(request.args.get('limit'))
             session['users'] = limit
         except:
-            limit = LIMIT_USERS
+            limit = _limit_users()
     else:
-        limit = session.get('users', LIMIT_USERS)
+        limit = session.get('users', _limit_users())
 
     if request.args.get('q'):
         domain.append(('rec_name', 'ilike', '%'+request.args.get('q')+'%'))
@@ -77,6 +81,7 @@ def users_list(lang):
 @manager_required
 @tryton.transaction()
 def login(lang):
+    GalateaUser = tryton.pool.get('galatea.user')
     try:
         user_id = (session['user2manager']
             if session.get('user2manager') else session['user'])
@@ -99,7 +104,7 @@ def login(lang):
             session['user2manager'] = session['user']
             session['user'] = user.id
             session['display_name'] = user.display_name
-            session['customer'] = user.party.id
+            session['customer'] = get_party_id(user.party)
             session['email'] = user.email
             if data:
                 session.update(data)
@@ -111,6 +116,7 @@ def login(lang):
 @manager_required
 @tryton.transaction()
 def logout(lang):
+    GalateaUser = tryton.pool.get('galatea.user')
     if session.get('user2manager'):
         user = GalateaUser(session['user2manager'])
         data = None
@@ -120,7 +126,7 @@ def logout(lang):
             pass
         session['user'] = user.id
         session['display_name'] = user.display_name
-        session['customer'] = user.party.id
+        session['customer'] = get_party_id(user.party)
         session['email'] = user.email
         session['user2manager'] = None
         if data:
